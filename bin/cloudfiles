@@ -1,0 +1,72 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'cloudfiles'
+require 'yaml'
+
+COMMANDS = %w{ls get put rm mkdir rmdir}
+
+class CloudFilesCmd
+  def initialize(config)
+    @cf = CloudFiles::Connection.new(config)
+  end
+  def ls(*container_names)
+    if container_names.empty?
+      @cf.containers_detail.each do |container_name, container_detail|
+        puts [container_detail[:count], container_detail[:bytes], container_name].join("\t")
+      end
+    else
+      container_names.each do |container_name|
+        @cf.get_container(container_name).objects_detail.each do |obj_name, obj_detail|
+          puts [container_name, obj_detail[:bytes], obj_detail[:last_modified].to_s, obj_name].join("\t")
+        end
+      end
+    end
+  end
+  def get(container_name, obj_name)
+    puts @cf.container(container_name).object(obj_name).data
+  end
+  def put(container_name, obj_file)
+    object = @cf.container(container_name).create_object(obj_file, false)
+    object.write(File.read(obj_file))
+  end
+  def rm(container_name, obj_name)
+    @cf.container(container_name).delete_object(obj_name)
+  end
+  def mkdir(container_name)
+    @cf.create_container(container_name)
+  end
+  def rmdir(container_name)
+    @cf.delete_container(container_name)
+  end
+end
+
+config_file = "#{ENV['HOME']}/.cloudfiles.yml"
+config = begin
+  YAML.load_file(config_file)
+rescue Errno::ENOENT => e
+  no_config = true
+  { :username => ENV['CLOUDFILES_USERNAME'],
+    :api_key => ENV['CLOUDFILES_API_KEY'],
+    :auth_url => ENV['CLOUDFILES_AUTH_URL'] }
+end
+
+if [:username, :api_key].any? {|k| config[k].nil? }
+  STDERR.puts "Could not load #{config_file}" if no_config
+  STDERR.puts "Need username and API key"
+  exit 1
+end
+
+cf = CloudFilesCmd.new(config)
+cmd = ARGV.shift
+
+if COMMANDS.include?(cmd)
+  begin
+    cf.send(cmd.to_sym, *ARGV)
+  rescue ArgumentError => e
+    STDERR.puts e.message
+  end
+else
+  STDERR.puts "Usage: cloudfiles [#{COMMANDS.join('|')}]"
+  exit 2
+end

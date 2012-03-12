@@ -23,12 +23,22 @@ class CloudFilesCmd
       end
     end
   end
-  def get(container_name, obj_name)
-    puts @cf.container(container_name).object(obj_name).data
+  def get(container_name, obj_name, obj_file='-')
+    data = @cf.container(container_name).object(obj_name).data
+    if obj_file == '-'
+      puts data
+    else
+      File.write(obj_file, data)
+    end
   end
-  def put(container_name, obj_file)
-    object = @cf.container(container_name).create_object(obj_file, false)
-    object.write(File.read(obj_file))
+  def put(container_name, obj_name, obj_file=nil)
+    obj_file ||= obj_name
+    object = @cf.container(container_name).create_object(obj_name, false)
+    if obj_file == '-'
+      object.write(STDIN.read)
+    else
+      object.write(File.read(obj_file))
+    end
   end
   def rm(container_name, obj_name)
     @cf.container(container_name).delete_object(obj_name)

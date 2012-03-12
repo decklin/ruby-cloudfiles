@@ -47,7 +47,12 @@ class CloudFilesCmd
     @cf.create_container(container_name)
   end
   def rmdir(container_name)
-    @cf.delete_container(container_name)
+    begin
+      @cf.delete_container(container_name)
+    rescue CloudFiles::Exception::NonEmptyContainer => e
+      puts e.message
+      exit 1
+    end
   end
 end
 

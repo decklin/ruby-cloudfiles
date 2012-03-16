@@ -23,7 +23,8 @@ class CloudFilesCmd
       end
     end
   end
-  def get(container_name, obj_name, obj_file='-')
+  def get(container_name, obj_name, obj_file=nil)
+    obj_file ||= obj_name
     data = @cf.container(container_name).object(obj_name).data
     if obj_file == '-'
       puts data

@@ -2,7 +2,15 @@
 
 require 'rubygems'
 require 'cloudfiles'
+require 'optparse'
 require 'yaml'
+
+$opts = {}
+OptionParser.new do |opts|
+  opts.on('-S', '--split BYTES', 'Split into BYTES-sized segments') do |bytes|
+    $opts[:split] = bytes.to_i
+  end
+end.parse!(ARGV)
 
 COMMANDS = %w{ls get put rm mkdir rmdir}
 
@@ -36,11 +44,25 @@ class CloudFilesCmd
   end
   def put(container_name, obj_name, obj_file=nil)
     obj_file ||= obj_name
-    object = @cf.container(container_name).create_object(obj_name, false)
     if obj_file == '-'
-      object.write(STDIN.read)
+      data = STDIN.read
     else
-      object.write(File.read(obj_file))
+      data = File.read(obj_file)
+    end
+    if $opts[:split]
+      object = @cf.container(container_name).create_object(obj_name)
+      object.write('')
+      n = 0
+      while data.size > 0
+        puts "#{data.size} bytes left, putting chunk #{n}..."
+        chunk_obj = @cf.container(container_name).create_object("#{obj_name}/#{n}", true)
+        chunk_obj.write(data.slice!(0..$opts[:split]))
+        n += 1
+      end
+      object.set_manifest("#{container_name}/#{obj_name}/")
+    else
+      object = @cf.container(container_name).create_object(obj_name)
+      object.write(data)
     end
   end
   def rm(container_name, obj_name)

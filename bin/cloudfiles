@@ -29,7 +29,9 @@ class CloudFilesCmd
     if obj_file == '-'
       puts data
     else
-      File.write(obj_file, data)
+      File.open(obj_file, 'w') do |f|
+        f.write(data)
+      end
     end
   end
   def put(container_name, obj_name, obj_file=nil)

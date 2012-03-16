@@ -51,25 +51,25 @@ class CloudFilesCmd
   def put(container_name, obj_name, obj_file=nil)
     obj_file ||= obj_name
     if obj_file == '-'
-      data = STDIN.read
+      input = STDIN
     else
-      data = File.read(obj_file)
+      input = File.open(obj_file)
     end
     if $opts[:split]
       object = @cf.container(container_name).create_object(obj_name)
       object.write('')
       n = 0
-      while data.size > 0
-        puts "#{data.size} bytes left, putting chunk #{n}..."
+      until input.eof?
         chunk_obj = @cf.container(container_name).create_object("#{obj_name}/#{n}", true)
-        chunk_obj.write(data.slice!(0..$opts[:split]))
+        chunk_obj.write(input.read($opts[:split]))
         n += 1
       end
       object.set_manifest("#{container_name}/#{obj_name}/")
     else
       object = @cf.container(container_name).create_object(obj_name)
-      object.write(data)
+      object.write(input.read)
     end
+    input.close unless input == STDIN
   end
   def rm(container_name, obj_name)
     @cf.container(container_name).delete_object(obj_name)

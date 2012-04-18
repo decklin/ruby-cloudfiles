@@ -17,8 +17,14 @@ class CloudFilesCmd
       end
     else
       container_names.each do |container_name|
-        @cf.get_container(container_name).objects_detail.each do |obj_name, obj_detail|
-          puts [container_name, obj_detail[:bytes], obj_detail[:last_modified].to_s, obj_name].join("\t")
+        if container_name.include?('/')
+          container_name, obj_name = container_name.split('/', 2)
+          obj = @cf.get_container(container_name).object(obj_name)
+          puts [container_name, obj.bytes, obj.last_modified.to_s, obj.etag, obj.etag, obj_name].join("\t")
+        else
+          @cf.get_container(container_name).objects_detail.each do |obj_name, obj_detail|
+            puts [container_name, obj_detail[:bytes], obj_detail[:last_modified].to_s, obj_detail[:hash], obj_name].join("\t")
+          end
         end
       end
     end

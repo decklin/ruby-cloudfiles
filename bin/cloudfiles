@@ -27,7 +27,7 @@ class CloudFilesCmd
     obj_file ||= obj_name
     data = @cf.container(container_name).object(obj_name).data
     if obj_file == '-'
-      puts data
+      STDOUT.write(data)
     else
       File.open(obj_file, 'w') do |f|
         f.write(data)
@@ -53,7 +53,7 @@ class CloudFilesCmd
     begin
       @cf.delete_container(container_name)
     rescue CloudFiles::Exception::NonEmptyContainer => e
-      puts e.message
+      STDERR.puts e.message
       exit 1
     end
   end

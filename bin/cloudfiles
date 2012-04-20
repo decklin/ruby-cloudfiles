@@ -22,7 +22,7 @@ class CloudFilesCmd
           obj = @cf.get_container(container_name).object(obj_name)
           puts [container_name, obj.bytes, obj.last_modified.to_s, obj.etag, obj.etag, obj_name].join("\t")
         else
-          @cf.get_container(container_name).objects_detail.each do |obj_name, obj_detail|
+          @cf.get_container(container_name).objects_detail(:full_listing => true).each do |obj_name, obj_detail|
             puts [container_name, obj_detail[:bytes], obj_detail[:last_modified].to_s, obj_detail[:hash], obj_name].join("\t")
           end
         end

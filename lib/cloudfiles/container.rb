@@ -260,9 +260,12 @@ module CloudFiles
           query << "#{param}=#{CloudFiles.escape(value.to_s)}"
         end
       end
-      begin 
+      begin
         response = SwiftClient.get_container(self.connection.storageurl, self.connection.authtoken, escaped_name, params[:marker], params[:limit], params[:prefix], params[:delimiter], params[:full_listing])
-        return Hash[*response[1].collect{|o| [o['name'],{ :bytes => o["bytes"], :hash => o["hash"], :content_type => o["content_type"], :last_modified => DateTime.parse(o["last_modified"])}] }.flatten]
+        # Can't use the Hash[*arr] trick here, blows the stack if the there are too many objects
+        return response[1].inject(Hash.new) do |h, o|
+          h[o['name']] = { :bytes => o["bytes"], :hash => o["hash"], :content_type => o["content_type"], :last_modified => DateTime.parse(o["last_modified"]) }; h
+        end
       rescue ClientException => e
         raise CloudFiles::Exception::InvalidResponse, "Invalid response code #{e.status}" unless (e.status.to_s == "200")
       end

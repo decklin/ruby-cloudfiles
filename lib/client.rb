@@ -196,7 +196,7 @@ public
   end
   
   def self.get_account(url, token, marker=nil, limit=nil, prefix=nil, 
-      http_conn=nil, full_listing=false)
+      full_listing=false, http_conn=nil)
     #todo: add in rest of functionality
     if not http_conn
       http_conn = http_connection(url)
@@ -204,11 +204,11 @@ public
     parsed = http_conn[0].clone
     conn = http_conn[1]
     if full_listing
-      rv = get_account(url, token, marker, limit, prefix, http_conn)
+      rv = get_account(url, token, marker, limit, prefix, false, http_conn)
       listing = rv[1]
       while listing.length > 0
         marker = listing[-1]['name']
-        listing = get_account(url, token, marker, limit, prefix, http_conn)[1]
+        listing = get_account(url, token, marker, limit, prefix, false, http_conn)[1]
         if listing.length > 0
           rv[1] += listing
         end
@@ -291,7 +291,7 @@ public
   end
 
   def self.get_container(url, token, container, marker=nil, limit=nil, 
-        prefix=nil, delimiter=nil, http_conn=nil, full_listing=nil)
+        prefix=nil, delimiter=nil, full_listing=false, http_conn=nil)
     #todo: add in rest of functionality
     if not http_conn
       http_conn = http_connection(url)
@@ -300,11 +300,11 @@ public
     conn = http_conn[1]
     
     if full_listing
-      rv = get_account(url, token, marker, limit, prefix, http_conn)
+      rv = get_container(url, token, container, marker, limit, prefix, delimiter, false, http_conn)
       listing = rv[1]
       while listing.length > 0
         marker = listing[-1]['name']
-        listing = get_account(url, token, marker, limit, prefix, http_conn)[1]
+        listing = get_container(url, token, container, marker, limit, prefix, delimiter, false, http_conn)[1]
         if listing.length > 0
           rv[1] += listing
         end

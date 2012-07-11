@@ -1,0 +1,118 @@
+#!/usr/bin/env ruby
+
+require 'rubygems'
+require 'cloudfiles'
+require 'optparse'
+require 'yaml'
+
+$opts = {}
+OptionParser.new do |opts|
+  opts.on('-S', '--split BYTES', 'Split into BYTES-sized segments') do |bytes|
+    $opts[:split] = bytes.to_i
+  end
+end.parse!(ARGV)
+
+COMMANDS = %w{ls get put rm mkdir rmdir}
+
+class CloudFilesCmd
+  def initialize(config)
+    @cf = CloudFiles::Connection.new(config)
+  end
+  def ls(*container_names)
+    if container_names.empty?
+      @cf.containers_detail.each do |container_name, container_detail|
+        puts [container_detail[:count], container_detail[:bytes], container_name].join("\t")
+      end
+    else
+      container_names.each do |container_name|
+        if container_name.include?('/')
+          container_name, obj_name = container_name.split('/', 2)
+          obj = @cf.get_container(container_name).object(obj_name)
+          puts [container_name, obj.bytes, obj.last_modified.to_s, obj.etag, obj.etag, obj_name].join("\t")
+        else
+          @cf.get_container(container_name).objects_detail(:full_listing => true).each do |obj_name, obj_detail|
+            puts [container_name, obj_detail[:bytes], obj_detail[:last_modified].to_s, obj_detail[:hash], obj_name].join("\t")
+          end
+        end
+      end
+    end
+  end
+  def get(container_name, obj_name, obj_file=nil)
+    obj_file ||= obj_name
+    data = @cf.container(container_name).object(obj_name).data
+    if obj_file == '-'
+      STDOUT.write(data)
+    else
+      File.open(obj_file, 'w') do |f|
+        f.write(data)
+      end
+    end
+  end
+  def put(container_name, obj_name, obj_file=nil)
+    obj_file ||= obj_name
+    if obj_file == '-'
+      input = STDIN
+    else
+      input = File.open(obj_file)
+    end
+    if $opts[:split]
+      object = @cf.container(container_name).create_object(obj_name)
+      object.write('')
+      n = 0
+      until input.eof?
+        chunk_obj = @cf.container(container_name).create_object("#{obj_name}/#{n}", true)
+        chunk_obj.write(input.read($opts[:split]))
+        n += 1
+      end
+      object.set_manifest("#{container_name}/#{obj_name}/")
+    else
+      object = @cf.container(container_name).create_object(obj_name)
+      object.write(input.read)
+    end
+    input.close unless input == STDIN
+  end
+  def rm(container_name, obj_name)
+    @cf.container(container_name).delete_object(obj_name)
+  end
+  def mkdir(container_name)
+    @cf.create_container(container_name)
+  end
+  def rmdir(container_name)
+    begin
+      @cf.delete_container(container_name)
+    rescue CloudFiles::Exception::NonEmptyContainer => e
+      STDERR.puts e.message
+      exit 1
+    end
+  end
+end
+
+config_file = "#{ENV['HOME']}/.cloudfiles.yml"
+config = begin
+  YAML.load_file(config_file)
+rescue Errno::ENOENT => e
+  no_config = true
+  { :username => ENV['CLOUDFILES_USERNAME'],
+    :api_key => ENV['CLOUDFILES_API_KEY'],
+    :auth_url => ENV['CLOUDFILES_AUTH_URL'] }
+end
+
+if [:username, :api_key].any? {|k| config[k].nil? }
+  STDERR.puts "Could not load #{config_file}" if no_config
+  STDERR.puts "Need username and API key"
+  exit 1
+end
+
+cf = CloudFilesCmd.new(config)
+cmd = ARGV.shift
+
+if COMMANDS.include?(cmd)
+  begin
+    cf.send(cmd.to_sym, *ARGV)
+  rescue ArgumentError => e
+    STDERR.puts e.message
+  end
+else
+  STDERR.puts "Usage: cloudfiles [#{COMMANDS.join('|')}]"
+  exit 2
+end

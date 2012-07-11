@@ -37,6 +37,9 @@ Gem::Specification.new do |s|
      "test/cloudfiles_client_test.rb",
      "test/test_helper.rb"
   ]
+  s.executables = [
+     "cloudfiles"
+  ]
   s.homepage = %q{http://www.rackspacecloud.com/cloud_hosting_products/files}
   s.rdoc_options = ["--charset=UTF-8"]
   s.require_paths = ["lib"]
